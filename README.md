@@ -11,11 +11,11 @@ The example bash command would be:
 
 where import method is specified by:
 
--i <file name> <organization name> <collection name> : imports a whole file specified as <file_name> and overwrite everything that's currently in <collection_name> specified. This command is most useful for batch password changes, where the old passwords are no longer in use and need to be written over.
+-i <file_name> <organization_name> <collection_name> : imports a whole file specified as <file_name> and overwrite everything that's currently in <collection_name> specified. This command is most useful for batch password changes, where the old passwords are no longer in use and need to be written over.
     
     $ python upload_passwords.py "user.0000...000" "xxxxxxxxx" "mp.txt" -i "passwords.csv" "Super Cool Company" "Super Cool Department"
     
--a <file name> : adds (not overwrites) passwords to the collection as specified in the .csv file that is uploaded. As this method interacts with CLI one password at a time, this takes considerably more time that -i.
+-a <file_name> : adds (not overwrites) passwords to the collection as specified in the .csv file that is uploaded. As this method interacts with CLI one password at a time, this takes considerably more time that -i.
 
     $ python upload_passwords.py "user.0000...000" "xxxxxxxxx" "mp.txt" -a "passwords.csv"
 
