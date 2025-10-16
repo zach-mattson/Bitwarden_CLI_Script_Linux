@@ -23,19 +23,24 @@ Using a password file, ensure that the password is the only thing on the first l
 By the recommendation of Bitwarden, "protect [your password file] by locking access down to only the user who needs to run bw unlock and only providing read access to that user." 
 
 CSV Formatting:
-    The input format for a CSV file containing passwords for needn't be too complicated. There must be at the following columns:
-        - Unit : the name or the title that will be associated with the password on Bitwarden. It is the label of the password.
-        - User : the login username.
-        - Password : the password of the given username
-        - IP address : the IP address (or the domain name) which will be associated with the login information
+
+The input format for a CSV file containing passwords for needn't be too complicated. There must be at the following columns:
     
-    These must be headers in the CSV file. If not, an error will be thrown. It doesn't matter where they are, as long as they are in the header. Not every logon needs each one of these elements. 
+- Unit : the name or the title that will be associated with the password on Bitwarden. It is the label of the password.
+  
+- User : the login username.
+
+- Password : the password of the given username
+
+- IP address : the IP address (or the domain name) which will be associated with the login information
+    
+These must be headers in the CSV file. If not, an error will be thrown. It doesn't matter where they are, as long as they are in the header. Not every logon needs each one of these elements. 
 
 
 
 Current additions in development:
 
--utilizing Python's pandas as a way to eliminate the need for a strict csv format.
+- utilizing Python's pandas as a way to eliminate the need for a strict csv format.
 
--improving error messages so as to be descriptive about the solution to the error.
+- improving error messages so as to be descriptive about the solution to the error.
     
