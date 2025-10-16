@@ -66,27 +66,29 @@ def verify_bitwarden_csv(file):
 def write_bitwarden_csv(csv, new_file):
     try:
         assert verify_csv(csv)
-
+        print("File is compatible with Bitwarden.")
         f = pd.read_csv(csv)
-        print("File is compatible with bitwarden.")
+        
+        number_of_items = len(f.index)
+        columns = ["collections","type","name","notes","fields","reprompt","login_uri","login_username","login_password","login_totp"]
+        w = pd.DataFrame([["" for i in range(10)] for j in range(number_of_items)], columns = columns)
+        
+        for line in range(number_of_items):
+            l = f.iloc[line]
+            w.iloc[line] = {
+                "collections" : COLLECTION_NAME,
+                "name" : l["User"],
+                "login_uri" : f"https://{l['IP address']}/",
+                "login_username" : l["User"],
+                "login_password" : l["Password"]
+            }
+        
+        w.to_csv(new_file, index = False)
 
-        headers = f.columns.to_list()
-        password = headers.index("Password") 
-        unit = headers.index("Unit")
-        ip_address = headers.index("IP address") 
-        user = headers.index("User")
-
-        #hoping to get this all translated to panda, so that there are less possible user mistakes when a comma is in some entry somewhere.
-        with open(csv, "r") as f:
-            with open(new_file, "w") as nf:
-                nf.write("collections,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp\n")
-                lines = f.readlines()
-                for line in lines[1:-1]:
-                    camera = [c.strip() for c in line.split(",")]
-                    nf.write(f"{COLLECTION_NAME},login,{camera[unit]},,,,https://{camera[ip_address]}/,{camera[user]},{camera[password]},\n")
-                camera = lines[-1].split(",")
-                nf.write(f"{COLLECTION_NAME},login,{camera[unit]},,,,https://{camera[ip_address]}/,{camera[user]},{camera[password]},")
-        print(f"File converted to: {new_file}")
+        if verify_bitwarden_csv(new_file):
+            print(f"File converted to: {new_file}")
+        else:
+            print("File converted incorrectly.")
 
     except FileNotFoundError:
         print(f"File could not be found: {csv}")
@@ -102,6 +104,7 @@ def write_bitwarden_csv(csv, new_file):
         except AssertionError as e:
             print(e, ": Data in the Genetec CSV file is mislabeled. Cannot convert to Bitwarden CSV.")
             quit()
+    
     return new_file 
 
 #The abstracted way to interact with Bitwarden's CLI
@@ -123,12 +126,6 @@ def login_to_bitwarden(attempt = 0):
         login, login_err = cmd_prompt([BW, "login", "--apikey"],[CLIENT_ID, CLIENT_SECRET], delay= 3 + attempt)
         if "client_id or client_secret is incorrect. Try again." in login_err:
             raise ValueError(login_err)
-        elif "You are not logged in" in login_err:
-            if attempt < 3:
-                print(f"Login failed, will attempt to login {'two' if attempt == 1 else 'one'} more {'times' if attempt == 1 else 'time'}.")
-                return login_to_bitwarden(attempt = attempt + 1)
-            else:
-                raise ValueError("Attempted and failed to log in three times.")
         else:
             print("You are logged in!")
             unlock, unlock_err = cmd_prompt([BW, "unlock"], [BW_PASSWORD])
@@ -138,8 +135,12 @@ def login_to_bitwarden(attempt = 0):
         print("The client information that was given is incorrect.\nCorrect info can be found at bitwarden.com after logging in, under Settings > Security > API Key.")
         quit()
     except IndexError:
-        print(f"IndexError: {unlock, unlock_err}")
-        quit()
+        if attempt < 3:
+            print(f"Login failed, will attempt to login {'two' if attempt == 1 else 'one'} more {'times' if attempt == 1 else 'time'}.")
+            return login_to_bitwarden(attempt = attempt + 1)
+        else:
+            print(f"IndexError: {unlock, unlock_err}")
+            quit()
     except OSError:
         logout()
         SESSION_KEY = login_to_bitwarden()
@@ -313,14 +314,18 @@ def add_passwords_from_csv(csv):
 
 if __name__ == "__main__":
     arguments = sys.argv
-    if arguments[4] == "-i":
-        if len(arguments) != 8:
-            print("Invalid CL arguments.")
-            quit()
-    elif arguments[4] == "-a":
-        if len(arguments) != 6:
-            print("Invalid CL arguments")
-            quit()
+    if len(arguments) > 3:
+        if arguments[4] == "-i":
+            if len(arguments) != 8:
+                print("Invalid CL arguments.")
+                quit()
+        elif arguments[4] == "-a":
+            if len(arguments) != 6:
+                print("Invalid CL arguments.")
+                quit()
+    else:
+        print("Invalid CL arguments.")
+        quit()
 
     CLIENT_ID = arguments[1]
     CLIENT_SECRET = arguments[2]
