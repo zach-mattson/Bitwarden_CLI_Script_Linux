@@ -26,3 +26,7 @@ where import method is specified by:
 Using a password file, ensure that the password is the only thing on the first line of the file.
 By the recommendation of Bitwarden, "protect [your password file] by locking access down to only the user who needs to run bw unlock and only providing read access to that user." 
 
+Current additions in development:
+    -utilizing Python's pandas as a way to eliminate the need for a strict csv format.
+    -improving error messages so as to be descriptive about the solution to the error.
+    

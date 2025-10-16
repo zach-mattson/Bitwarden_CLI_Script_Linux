@@ -1,7 +1,7 @@
 import subprocess
+import pandas as pd
 import time, re
-import sys
-import os
+import sys, os
 
 #This is the Linux build. 
 
@@ -107,16 +107,23 @@ def cmd_prompt(commands, inputs = [], delay = 2):
     
     return output[0], output[1]
 
-def login_to_bitwarden():
+def login_to_bitwarden(attempt = 0):
     #inputs correct info for unlocking the account and gets session key
     try:
-        login, login_err = cmd_prompt([BW, "login", "--apikey"],[CLIENT_ID, CLIENT_SECRET], delay=3)
+        login, login_err = cmd_prompt([BW, "login", "--apikey"],[CLIENT_ID, CLIENT_SECRET], delay= 3 + attempt)
         if "client_id or client_secret is incorrect. Try again." in login_err:
             raise ValueError(login_err)
-        print("You are logged in!")
-        unlock, unlock_err = cmd_prompt([BW, "unlock"], [BW_PASSWORD])
-        SESSION_KEY = unlock.split('"')[1]
-        print(f"Session key obtained: {SESSION_KEY}")
+        elif "You are not logged in" in login_err:
+            if attempt < 3:
+                print(f"Login failed, will attempt to login {'two' if attempt == 1 else 'one'} more {'times' if attempt == 1 else 'time'}.")
+                return login_to_bitwarden(attempt = attempt + 1)
+            else:
+                raise ValueError("Attempted and failed to log in three times.")
+        else:
+            print("You are logged in!")
+            unlock, unlock_err = cmd_prompt([BW, "unlock"], [BW_PASSWORD])
+            SESSION_KEY = unlock.split('"')[1]
+            print(f"Session key obtained: {SESSION_KEY}")
     except ValueError as e:
         print("The client information that was given is incorrect.\nCorrect info can be found at bitwarden.com after logging in, under Settings > Security > API Key.")
         quit()
@@ -238,8 +245,6 @@ def add_password(name, uris, username, password, collectionid, organizationid):
     login = templates["login"].replace('"uris":[]', ('"uris":[{"uri":"' + uris + '"}]'))
     login = login.replace('"username":"jdoe"', f'"username":"{username}"')
     login = login.replace('"password":"myp@ssword123"', f'"password":"{password}"')
-
-
 
     password = templates["item"].replace('"organizationId":null', f'"organizationId": "{organizationid}"')
     password = password.replace('"collectionIds":null', f'"collectionIds":["{collectionid}"]')
