@@ -5,7 +5,7 @@ import sys, os
 
 #This is the Linux build. 
 
-#This is the PATH for the Bitwarden CLI. This needs to be correct in order for the rest of the program to run.
+#BW the PATH for the Bitwarden CLI. This needs to be correct in order for the rest of the program to run.
 #The easiest way to do this is to have it in the same directory as this file, or to put bw in /usr/local/bin.
 
 if "bw" in os.listdir():
@@ -13,23 +13,22 @@ if "bw" in os.listdir():
 else:
     BW = "bw"
 
-templates = {
-    "item" : "",
-    "login" : "",
-}
+#Assures that files are formatted correctly, or that they at least contain the correct headings.
+def verify_csv(file, debug = False):
+    f = pd.read_csv(file)
+    headers = f.columns.to_list()
 
-#Assures that files are formatted correctly
-def verify_genetec_csv(file, debug = False):
-    with open(file) as f:
-        columns = f.readline().split(",")
-        if debug:
-            print(columns)
-        assert columns[0].strip() == "Password"
-        assert columns[1].strip() == "Unit"
-        assert columns[8].strip() == "IP address"
-        assert columns[10].strip() == "User"
+    if debug:
+        print(headers)
+
+    assert headers.index("Password") != -1
+    assert headers.index("Unit") != -1
+    assert headers.index("IP address")  != -1
+    assert headers.index("User") != -1
+
     return True
 
+#Checks to see if the given file is directly compatible with Bitwarden.
 def verify_bitwarden_csv(file):
     with open(file) as f:
         rest = f.readlines()
@@ -44,54 +43,68 @@ def verify_bitwarden_csv(file):
         assert columns[7] == "login_username"
         assert columns[8] == "login_password"
         assert columns[9] == "login_totp\n"
+
         collections = []
         for line in rest[1:]:
             collection = line.split(",")[0]
             if collection not in collections:
                 collections.append(collection)
-    #makes sure that there is only one collection that we will be adding to.
-    assert len(collections) == 1
+
+    #Currently mode -i is will only import objects to a single collection. This check here reminds the user of that if it's not the case:
+    if len(collections) > 1:
+        print("Be aware that the file you are importing has multiple collections listed as destinations for the import. Currently, mode -i only imports to a single collection.")
+        check = input("Would you like to continue (y/n): ")
+        while check != "y" or check != "n":
+            check = input("Would you like to continue (y/n): ")
+        if check != "y":
+            quit()
+
     return True, collections
 
 #This function assumes that you want every password to be added to a new collection labeled according to <COLLECTION_NAME>
 #returns the file path to a bitwarden compatible csv, and also an array of the collections that will be created by importing this file.
-def write_bitwarden_csv(genetec_csv, new_file):
+def write_bitwarden_csv(csv, new_file):
     try:
-        assert verify_genetec_csv(genetec_csv)
-        print("File is compatible with bitwarden.")
-        with open(genetec_csv, "r") as f:
-            with open(new_file, "w") as nf:
-                nf.write("collections,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp\n")
-                lines = f.readlines()
-                for line in lines[1:-1]:
-                    camera = [c.strip() for c in line.split(",")]
-                    #for some reason, vivotek has another comma at one point, so this is for that.
-                    if camera[2] == "Vivotek":
-                        nf.write(f"{COLLECTION_NAME},login,{camera[1]},,,,https://{camera[9]}/,{camera[11]},{camera[0]},\n")
-                    else:
-                        nf.write(f"{COLLECTION_NAME},login,{camera[1]},,,,https://{camera[8]}/,{camera[10]},{camera[0]},\n")
-                camera = lines[-1].split(",")
-                if camera[2] == "Vivotek":
-                    nf.write(f"{COLLECTION_NAME},login,{camera[1]},,,,https://{camera[9]}/,{camera[11]},{camera[0]},")
-                else:
-                    nf.write(f"{COLLECTION_NAME},login,{camera[1]},,,,https://{camera[8]}/,{camera[10]},{camera[0]},")
-        print(f"File converted to: {new_file}")
+        assert verify_csv(csv)
+        print("File is compatible with Bitwarden.")
+        f = pd.read_csv(csv)
+        
+        number_of_items = len(f.index)
+        columns = ["collections","type","name","notes","fields","reprompt","login_uri","login_username","login_password","login_totp"]
+        w = pd.DataFrame([["" for i in range(10)] for j in range(number_of_items)], columns = columns)
+        
+        for line in range(number_of_items):
+            l = f.iloc[line]
+            w.iloc[line] = {
+                "collections" : COLLECTION_NAME,
+                "name" : l["User"],
+                "login_uri" : f"https://{l['IP address']}/",
+                "login_username" : l["User"],
+                "login_password" : l["Password"]
+            }
+        
+        w.to_csv(new_file, index = False)
+
+        if verify_bitwarden_csv(new_file):
+            print(f"File converted to: {new_file}")
+        else:
+            print("File converted incorrectly.")
 
     except FileNotFoundError:
-        print(f"File could not be found: {genetec_csv}")
+        print(f"File could not be found: {csv}")
         quit()
     except AssertionError:
         try:
-            is_bitwarden_file, collections = verify_bitwarden_csv(genetec_csv)
+            is_bitwarden_file, collections = verify_bitwarden_csv(csv)
             if is_bitwarden_file:
                 print("File is compatible with bitwarden.")
-                return genetec_csv
+                return csv
             else:
                 assert False
-        except AssertionError:
-            print("Data in the Genetec CSV file is mislabeled. Cannot convert to Bitwarden CSV.")
-            verify_genetec_csv(genetec_csv, True)
+        except AssertionError as e:
+            print(e, ": Data in the Genetec CSV file is mislabeled. Cannot convert to Bitwarden CSV.")
             quit()
+    
     return new_file 
 
 #The abstracted way to interact with Bitwarden's CLI
@@ -113,12 +126,6 @@ def login_to_bitwarden(attempt = 0):
         login, login_err = cmd_prompt([BW, "login", "--apikey"],[CLIENT_ID, CLIENT_SECRET], delay= 3 + attempt)
         if "client_id or client_secret is incorrect. Try again." in login_err:
             raise ValueError(login_err)
-        elif "You are not logged in" in login_err:
-            if attempt < 3:
-                print(f"Login failed, will attempt to login {'two' if attempt == 1 else 'one'} more {'times' if attempt == 1 else 'time'}.")
-                return login_to_bitwarden(attempt = attempt + 1)
-            else:
-                raise ValueError("Attempted and failed to log in three times.")
         else:
             print("You are logged in!")
             unlock, unlock_err = cmd_prompt([BW, "unlock"], [BW_PASSWORD])
@@ -128,11 +135,16 @@ def login_to_bitwarden(attempt = 0):
         print("The client information that was given is incorrect.\nCorrect info can be found at bitwarden.com after logging in, under Settings > Security > API Key.")
         quit()
     except IndexError:
-        print(f"IndexError: {unlock, unlock_err}")
-        quit()
+        if attempt < 3:
+            print(f"Login failed, will attempt to login {'two' if attempt == 1 else 'one'} more {'times' if attempt == 1 else 'time'}.")
+            return login_to_bitwarden(attempt = attempt + 1)
+        else:
+            print(f"IndexError: {unlock, unlock_err}")
+            quit()
     except OSError:
         logout()
         SESSION_KEY = login_to_bitwarden()
+
     return SESSION_KEY
 
 def logout():
@@ -254,9 +266,9 @@ def add_password(name, uris, username, password, collectionid, organizationid):
     encode = cmd_prompt([BW, "encode"], [password])
     create = cmd_prompt([BW, "create", "item", "--session", SESSION_KEY], [encode])
 
-def add_passwords_from_csv(genetec_csv):
+def add_passwords_from_csv(csv):
     #standardize data according to bitwarden's needs
-    file_name = write_bitwarden_csv(genetec_csv, "bitwarden_ready.csv")
+    file_name = write_bitwarden_csv(csv, "bitwarden_ready.csv")
 
     #find json templates. 
     templates["item"], template_error1 = cmd_prompt([BW, "get", "template", "item", "--session", SESSION_KEY])
@@ -302,18 +314,27 @@ def add_passwords_from_csv(genetec_csv):
 
 if __name__ == "__main__":
     arguments = sys.argv
-    if arguments[4] == "-i":
-        if len(arguments) != 8:
-            print("Invalid CL arguments.")
-            quit()
-    elif arguments[4] == "-a":
-        if len(arguments) != 6:
-            print("Invalid CL arguments")
-            quit()
+    if len(arguments) > 3:
+        if arguments[4] == "-i":
+            if len(arguments) != 8:
+                print("Invalid CL arguments.")
+                quit()
+        elif arguments[4] == "-a":
+            if len(arguments) != 6:
+                print("Invalid CL arguments.")
+                quit()
+    else:
+        print("Invalid CL arguments.")
+        quit()
 
     CLIENT_ID = arguments[1]
     CLIENT_SECRET = arguments[2]
     mp_file = arguments[3]
+
+    templates = {
+        "item" : "",
+        "login" : "",
+    }
 
     try:
         with open(mp_file) as f:
