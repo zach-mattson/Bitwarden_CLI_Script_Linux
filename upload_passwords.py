@@ -6,9 +6,12 @@ import os
 #This is the Linux build. 
 
 #This is the PATH for the Bitwarden CLI. This needs to be correct in order for the rest of the program to run.
-#The easiest way to do this is to have it in the same directory as this file.
+#The easiest way to do this is to have it in the same directory as this file, or to put bw in /usr/local/bin.
 
-BW = "bw"
+if "bw" in os.listdir():
+    BW = "./bw"
+else:
+    BW = "bw"
 
 templates = {
     "item" : "",
