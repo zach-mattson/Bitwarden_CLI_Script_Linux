@@ -7,21 +7,17 @@ Also be sure that the Linux binary file has been configured to be run as an exec
 
 The example bash command would be:
 
-$ python upload_passwords.py <client_id> <client_secret> <bw password | bw password file path> <import method>
+    $ python upload_passwords.py <client_id> <client_secret> <bw password | bw password file path> <import method>
 
 where import method is specified by:
-    -i <file name> <Organization Name> <Collection Name> : 
-        import a whole file specified as <file_name> and overwrite everything that's currently in <collection_name> specified.
-        This command is most useful for batch password changes, where the old passwords are no longer in use and need to be written over.
+
+-i <file name> <organization name> <collection name> : imports a whole file specified as <file_name> and overwrite everything that's currently in <collection_name> specified. This command is most useful for batch password changes, where the old passwords are no longer in use and need to be written over.
     
-        i.e. $ python upload_passwords.py "user.0000...000" "xxxxxxxxx" "mp.txt" -i "passwords.csv" "Super Cool Company" "Super Cool Department"
+    $ python upload_passwords.py "user.0000...000" "xxxxxxxxx" "mp.txt" -i "passwords.csv" "Super Cool Company" "Super Cool Department"
+    
+-a <file name> : adds (not overwrites) passwords to the collection as specified in the .csv file that is uploaded. As this method interacts with CLI one password at a time, this takes considerably more time that -i.
 
-    -a <file name> :
-        This command only adds passwords to the collection as specified in the .csv file that is uploaded.
-        As a warning, this takes considerably more time that -i. Due to the nature of Bitwarden's CLI and importing passwords this function interates through each password individually, rather than in batches.
-
-        i.e. $python upload_passwords.py "user.0000...000" "xxxxxxxxx" "mp.txt" -a "passwords.csv"
-
+    $ python upload_passwords.py "user.0000...000" "xxxxxxxxx" "mp.txt" -a "passwords.csv"
 
 Using a password file, ensure that the password is the only thing on the first line of the file.
 By the recommendation of Bitwarden, "protect [your password file] by locking access down to only the user who needs to run bw unlock and only providing read access to that user." 
@@ -38,5 +34,8 @@ CSV Formatting:
 
 
 Current additions in development:
-    -utilizing Python's pandas as a way to eliminate the need for a strict csv format.
-    -improving error messages so as to be descriptive about the solution to the error.
+
+-utilizing Python's pandas as a way to eliminate the need for a strict csv format.
+
+-improving error messages so as to be descriptive about the solution to the error.
+    
